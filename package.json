@@ -1,0 +1,58 @@
+{
+  "name": "@yeasy1003/claude-log",
+  "version": "0.1.0",
+  "description": "CLI to quickly surface key info from Claude Code conversation history",
+  "license": "MIT",
+  "author": "yeasy1003",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yeasy1003/claude-log.git"
+  },
+  "homepage": "https://github.com/yeasy1003/claude-log#readme",
+  "bugs": {
+    "url": "https://github.com/yeasy1003/claude-log/issues"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "cli",
+    "jsonl",
+    "conversation",
+    "history",
+    "summary"
+  ],
+  "type": "module",
+  "bin": {
+    "cc-log": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "fix": "biome check --write .",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "picocolors": "^1.1.1",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@types/node": "^24.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
