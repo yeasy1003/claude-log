@@ -1,6 +1,6 @@
 {
   "name": "@yeasy1003/claude-log",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI to quickly surface key info from Claude Code conversation history",
   "license": "MIT",
   "author": "yeasy1003",
