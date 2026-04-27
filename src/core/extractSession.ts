@@ -1,4 +1,10 @@
-import type { AgentInvocation, SessionSummary, SkillInvocation, Turn } from "./types.ts";
+import type {
+  AgentInvocation,
+  SessionSummary,
+  SkillInvocation,
+  ToolCall,
+  Turn,
+} from "./types.ts";
 
 type RawEntry = Record<string, unknown>;
 
@@ -88,7 +94,7 @@ const classifyUserText = (raw: string): string | null => {
 
 type AssistantParts = {
   text: string | null;
-  toolUses: Array<{ name: string; input: unknown }>;
+  toolUses: Array<{ id: string | null; name: string; input: unknown }>;
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
@@ -109,13 +115,14 @@ const extractAssistantParts = (entry: RawEntry): AssistantParts => {
   const content = message.content;
   if (!Array.isArray(content)) return empty;
   const texts: string[] = [];
-  const toolUses: Array<{ name: string; input: unknown }> = [];
+  const toolUses: Array<{ id: string | null; name: string; input: unknown }> = [];
   for (const item of content) {
     if (!isObj(item)) continue;
     if (item.type === "text" && typeof item.text === "string") {
       texts.push(item.text);
     } else if (item.type === "tool_use" && typeof item.name === "string") {
-      toolUses.push({ name: item.name, input: item.input });
+      const id = typeof item.id === "string" ? item.id : null;
+      toolUses.push({ id, name: item.name, input: item.input });
     }
   }
   let inputTokens = 0;
@@ -150,15 +157,46 @@ const INTERRUPT_MARKERS = [
 const isSyntheticUserText = (text: string): boolean =>
   INTERRUPT_MARKERS.some((m) => text.trim().startsWith(m));
 
+const toolResultToText = (content: unknown): string => {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  const parts: string[] = [];
+  for (const item of content) {
+    if (typeof item === "string") {
+      parts.push(item);
+    } else if (isObj(item) && item.type === "text" && typeof item.text === "string") {
+      parts.push(item.text);
+    } else if (isObj(item) && item.type === "image") {
+      parts.push("[image omitted]");
+    }
+  }
+  return parts.join("\n");
+};
+
+const truncate = (s: string, limit: number): string => {
+  if (limit === 0) return s;
+  if (s.length <= limit) return s;
+  return `${s.slice(0, limit)}...`;
+};
+
+export type ExtractOptions = {
+  captureToolCalls?: boolean;
+  toolOutputLimit?: number;
+};
+
 export type ExtractInput = {
   entries: unknown[];
   projectId: string;
   sourceFile: string;
   sourceMtimeMs: number;
+  options?: ExtractOptions;
 };
 
 export const extractSession = (input: ExtractInput): SessionSummary => {
-  const { entries, projectId, sourceFile, sourceMtimeMs } = input;
+  const { entries, projectId, sourceFile, sourceMtimeMs, options } = input;
+  const captureCalls = options?.captureToolCalls === true;
+  const outputLimit = options?.toolOutputLimit ?? 2000;
+  const pendingToolUses = new Map<string, { turnIndex: number; callIndex: number }>();
 
   const turns: Turn[] = [];
   const skillsUsed: SkillInvocation[] = [];
@@ -199,12 +237,33 @@ export const extractSession = (input: ExtractInput): SessionSummary => {
 
     if (type === "user") {
       if (raw.isMeta === true) continue;
+      if (captureCalls) {
+        const message = raw.message;
+        if (isObj(message) && Array.isArray(message.content)) {
+          for (const item of message.content) {
+            if (!isObj(item) || item.type !== "tool_result") continue;
+            const useId = getStr(item.tool_use_id);
+            if (useId === null) continue;
+            const ref = pendingToolUses.get(useId);
+            if (ref === undefined) continue;
+            const turn = turns[ref.turnIndex];
+            const call = turn?.toolCalls?.[ref.callIndex];
+            if (call === undefined) continue;
+            const rawText = toolResultToText(item.content);
+            call.output = truncate(rawText, outputLimit);
+            call.isError = item.is_error === true;
+            pendingToolUses.delete(useId);
+          }
+        }
+      }
       const text = extractUserText(raw);
       if (text === null) continue;
       const cleaned = classifyUserText(text);
       if (cleaned === null) continue;
       if (isSyntheticUserText(cleaned)) continue;
-      turns.push({ user: cleaned, assistant: null });
+      const newTurn: Turn = { user: cleaned, assistant: null };
+      if (captureCalls) newTurn.toolCalls = [];
+      turns.push(newTurn);
       messageCount += 1;
       continue;
     }
@@ -239,6 +298,24 @@ export const extractSession = (input: ExtractInput): SessionSummary => {
             subagent_type: subagentType,
             description: getStr(tu.input.description),
           });
+        }
+        if (captureCalls && tu.id !== null) {
+          const lastTurn = turns[turns.length - 1];
+          if (lastTurn !== undefined && lastTurn.toolCalls !== undefined) {
+            const call: ToolCall = {
+              id: tu.id,
+              name: tu.name,
+              input: tu.input,
+              output: null,
+              isError: false,
+            };
+            const callIndex = lastTurn.toolCalls.length;
+            lastTurn.toolCalls.push(call);
+            pendingToolUses.set(tu.id, {
+              turnIndex: turns.length - 1,
+              callIndex,
+            });
+          }
         }
       }
     }
