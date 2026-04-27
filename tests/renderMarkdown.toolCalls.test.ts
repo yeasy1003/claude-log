@@ -21,9 +21,7 @@ describe("summarizeToolInput", () => {
     expect(summarizeToolInput("Skill", { skill: "superpowers:brainstorming" })).toBe(
       "superpowers:brainstorming",
     );
-    expect(summarizeToolInput("Skill", { skill: "loop", args: "5m /foo" })).toBe(
-      "loop 5m /foo",
-    );
+    expect(summarizeToolInput("Skill", { skill: "loop", args: "5m /foo" })).toBe("loop 5m /foo");
   });
   test("Agent uses subagent_type, falls back to description", () => {
     expect(summarizeToolInput("Agent", { subagent_type: "Explore" })).toBe("Explore");
@@ -43,7 +41,7 @@ describe("summarizeToolInput", () => {
     expect(summarizeToolInput("Bash", { not_command: "x" })).toBe('{"not_command":"x"}');
   });
   test("input summary always capped at 200 characters", () => {
-    const longCmd = "echo " + "a".repeat(500);
+    const longCmd = `echo ${"a".repeat(500)}`;
     const summary = summarizeToolInput("Bash", { command: longCmd });
     expect(summary.length).toBe(203);
     expect(summary.endsWith("...")).toBe(true);
