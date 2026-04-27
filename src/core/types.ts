@@ -8,9 +8,18 @@ export type AgentInvocation = {
   description: string | null;
 };
 
+export type ToolCall = {
+  id: string;
+  name: string;
+  input: unknown;
+  output: string | null;
+  isError: boolean;
+};
+
 export type Turn = {
   user: string;
   assistant: string | null;
+  toolCalls?: ToolCall[];
 };
 
 export type SessionSummary = {
