@@ -54,7 +54,10 @@ describe("extractSession tool calls", () => {
     ];
     const result = extractSession({ ...baseInput, entries });
     expect(result.turns).toHaveLength(1);
-    expect("toolCalls" in result.turns[0]!).toBe(false);
+    const turn = result.turns[0];
+    expect(turn).toBeDefined();
+    if (turn === undefined) return;
+    expect("toolCalls" in turn).toBe(false);
   });
 
   test("captureToolCalls=true: pairs tool_use with tool_result by id", () => {
@@ -69,7 +72,7 @@ describe("extractSession tool calls", () => {
       entries,
       options: { captureToolCalls: true },
     });
-    expect(result.turns[0]!.toolCalls).toEqual([
+    expect(result.turns[0]?.toolCalls).toEqual([
       {
         id: "t1",
         name: "Bash",
@@ -78,7 +81,7 @@ describe("extractSession tool calls", () => {
         isError: false,
       },
     ]);
-    expect(result.turns[1]!.toolCalls).toEqual([]);
+    expect(result.turns[1]?.toolCalls).toEqual([]);
   });
 
   test("pairs across non-user entries inserted between tool_use and tool_result", () => {
@@ -93,7 +96,7 @@ describe("extractSession tool calls", () => {
       entries,
       options: { captureToolCalls: true },
     });
-    expect(result.turns[0]!.toolCalls?.[0]?.output).toBe("contents");
+    expect(result.turns[0]?.toolCalls?.[0]?.output).toBe("contents");
   });
 
   test("multiple tool_uses in one assistant entry, results returned out of order", () => {
@@ -115,7 +118,10 @@ describe("extractSession tool calls", () => {
       entries,
       options: { captureToolCalls: true },
     });
-    const calls = result.turns[0]!.toolCalls!;
+    const turn = result.turns[0];
+    expect(turn).toBeDefined();
+    expect(turn?.toolCalls).toBeDefined();
+    const calls = turn?.toolCalls || [];
     expect(calls.map((c) => c.id)).toEqual(["a", "b", "c"]);
     expect(calls.map((c) => c.output)).toEqual(["out-a", "out-b", "out-c"]);
   });
@@ -131,7 +137,7 @@ describe("extractSession tool calls", () => {
       options: { captureToolCalls: true },
     });
     expect(result.turns).toHaveLength(1);
-    expect(result.turns[0]!.toolCalls).toEqual([]);
+    expect(result.turns[0]?.toolCalls).toEqual([]);
   });
 
   test("unmatched tool_use leaves output null", () => {
@@ -144,7 +150,7 @@ describe("extractSession tool calls", () => {
       entries,
       options: { captureToolCalls: true },
     });
-    expect(result.turns[0]!.toolCalls?.[0]?.output).toBeNull();
+    expect(result.turns[0]?.toolCalls?.[0]?.output).toBeNull();
   });
 
   test("tool_result content array with text + image is joined; image becomes [image omitted]", () => {
@@ -167,7 +173,7 @@ describe("extractSession tool calls", () => {
       entries,
       options: { captureToolCalls: true },
     });
-    expect(result.turns[0]!.toolCalls?.[0]?.output).toBe("line 1\n[image omitted]\nline 3");
+    expect(result.turns[0]?.toolCalls?.[0]?.output).toBe("line 1\n[image omitted]\nline 3");
   });
 
   test("is_error true is propagated; missing is_error defaults to false", () => {
@@ -187,8 +193,8 @@ describe("extractSession tool calls", () => {
       entries,
       options: { captureToolCalls: true },
     });
-    expect(result.turns[0]!.toolCalls?.[0]?.isError).toBe(false);
-    expect(result.turns[0]!.toolCalls?.[1]?.isError).toBe(true);
+    expect(result.turns[0]?.toolCalls?.[0]?.isError).toBe(false);
+    expect(result.turns[0]?.toolCalls?.[1]?.isError).toBe(true);
   });
 
   test("truncates output to limit and appends '...'", () => {
@@ -203,7 +209,7 @@ describe("extractSession tool calls", () => {
       entries,
       options: { captureToolCalls: true, toolOutputLimit: 100 },
     });
-    expect(result.turns[0]!.toolCalls?.[0]?.output).toBe(`${"x".repeat(100)}...`);
+    expect(result.turns[0]?.toolCalls?.[0]?.output).toBe(`${"x".repeat(100)}...`);
   });
 
   test("limit=0 disables truncation", () => {
@@ -218,7 +224,7 @@ describe("extractSession tool calls", () => {
       entries,
       options: { captureToolCalls: true, toolOutputLimit: 0 },
     });
-    expect(result.turns[0]!.toolCalls?.[0]?.output).toBe(longOutput);
+    expect(result.turns[0]?.toolCalls?.[0]?.output).toBe(longOutput);
   });
 
   test("sidechain entries with tool_use are excluded", () => {
@@ -240,7 +246,7 @@ describe("extractSession tool calls", () => {
       entries,
       options: { captureToolCalls: true },
     });
-    const ids = result.turns[0]!.toolCalls!.map((c) => c.id);
+    const ids = result.turns[0]?.toolCalls?.map((c) => c.id);
     expect(ids).toEqual(["main"]);
   });
 });

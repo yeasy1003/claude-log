@@ -1,10 +1,4 @@
-import type {
-  AgentInvocation,
-  SessionSummary,
-  SkillInvocation,
-  ToolCall,
-  Turn,
-} from "./types.ts";
+import type { AgentInvocation, SessionSummary, SkillInvocation, ToolCall, Turn } from "./types.ts";
 
 type RawEntry = Record<string, unknown>;
 
