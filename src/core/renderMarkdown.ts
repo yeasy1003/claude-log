@@ -1,4 +1,4 @@
-import type { SessionSummary } from "./types.ts";
+import type { SessionSummary, ToolCall } from "./types.ts";
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -160,6 +160,33 @@ const renderFooter = (s: SessionSummary): string[] => {
   return lines;
 };
 
+const longestBacktickRun = (s: string): number => {
+  const matches = s.match(/`+/g);
+  if (matches === null) return 0;
+  return Math.max(...matches.map((m) => m.length));
+};
+
+const fenceFor = (output: string): string => {
+  const longest = longestBacktickRun(output);
+  return "`".repeat(Math.max(3, longest + 1));
+};
+
+const renderToolCall = (call: ToolCall, index: number): string[] => {
+  const lines: string[] = [];
+  const errorTag = call.isError ? " [error]" : "";
+  const summary = summarizeToolInput(call.name, call.input);
+  lines.push(`${index + 1}. **${call.name}**${errorTag} — \`${summary}\``);
+  if (call.output === null) {
+    lines.push("   _(no output captured)_");
+  } else {
+    const fence = fenceFor(call.output);
+    lines.push(fence);
+    lines.push(call.output);
+    lines.push(fence);
+  }
+  return lines;
+};
+
 const renderInterleaved = (s: SessionSummary): string[] => {
   const lines: string[] = [];
   lines.push("## Conversation");
@@ -175,6 +202,14 @@ const renderInterleaved = (s: SessionSummary): string[] => {
     lines.push("");
     lines.push(`> ${t.user.replace(/\n/g, "\n> ")}`);
     lines.push("");
+    if (t.toolCalls !== undefined && t.toolCalls.length > 0) {
+      lines.push(`### Tool Calls (Q${num})`);
+      lines.push("");
+      t.toolCalls.forEach((c, ci) => {
+        for (const line of renderToolCall(c, ci)) lines.push(line);
+      });
+      lines.push("");
+    }
     lines.push(`### A${num}`);
     lines.push("");
     if (t.assistant === null) {
@@ -218,15 +253,28 @@ const renderSectioned = (s: SessionSummary): string[] => {
       lines.push("");
     }
   }
+
+  const turnsWithCalls = s.turns
+    .map((t, i) => ({ turn: t, num: i + 1 }))
+    .filter((x) => x.turn.toolCalls !== undefined && x.turn.toolCalls.length > 0);
+  if (turnsWithCalls.length > 0) {
+    lines.push("## Tool Calls");
+    lines.push("");
+    for (const { turn, num } of turnsWithCalls) {
+      lines.push(`### Q${num}`);
+      lines.push("");
+      turn.toolCalls?.forEach((c, ci) => {
+        for (const line of renderToolCall(c, ci)) lines.push(line);
+      });
+      lines.push("");
+    }
+  }
   return lines;
 };
 
 export type RenderFormat = "interleaved" | "sectioned";
 
-export const renderMarkdown = (
-  s: SessionSummary,
-  format: RenderFormat = "interleaved",
-): string => {
+export const renderMarkdown = (s: SessionSummary, format: RenderFormat = "interleaved"): string => {
   const lines = [
     ...renderHeader(s),
     ...(format === "sectioned" ? renderSectioned(s) : renderInterleaved(s)),
