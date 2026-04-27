@@ -7,14 +7,17 @@ Reads Claude Code session logs directly from `~/.claude/projects/*.jsonl` (or `$
 ## Install
 
 ```bash
-# local
+# install from npm
+npm i -g @yeasy1003/claude-log
+cc-log --help
+```
+
+Or build from source:
+
+```bash
 pnpm install
 pnpm build
 node dist/cli.js --help
-
-# once published
-npm i -g @yeasy1003/claude-log
-cc-log --help
 ```
 
 ## Usage
