@@ -30,6 +30,11 @@ cc-log list --json
 cc-log show e2a7d418
 cc-log show e2a7d418-8305-406a-b072-d38304964866 --json
 
+# Include intermediate tool calls + their results in the output
+cc-log show e2a7d418 --with-tool-output
+cc-log show e2a7d418 --with-tool-output --tool-output-limit 500
+cc-log show e2a7d418 --with-tool-output --tool-output-limit 0   # no truncation
+
 # Search across queries and assistant conclusions
 cc-log search "superpower"
 cc-log search "migration" --in conclusions --since 30d
@@ -50,6 +55,7 @@ For each session, claude-log extracts:
 - **User queries** — your actual messages, stripping `<system-reminder>` / `<command-*>` tags and synthetic interrupt markers
 - **Assistant conclusions** — the final text each turn (tool calls and reasoning are counted separately)
 - **Skills invoked** — `Skill` tool calls with their names/args
+- **Tool calls (opt-in via `--with-tool-output` on `show`)** — for each turn, the `tool_use` calls plus their paired `tool_result` outputs, with per-result truncation (default 2000 chars; `--tool-output-limit 0` disables)
 - **Tool usage counts** — how many times each tool was used
 - **Token totals** — input / output / cache-read / cache-create
 - **Timing** — start, end, duration, message count
