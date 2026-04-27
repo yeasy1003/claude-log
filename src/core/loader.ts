@@ -1,12 +1,13 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
-import { extractSession } from "./extractSession.ts";
+import { type ExtractOptions, extractSession } from "./extractSession.ts";
 import type { SessionSummary } from "./types.ts";
 
 export type LoadOptions = {
   projectsDir: string;
   projectFilter?: string | null;
   sinceMs?: number | null;
+  extractOptions?: ExtractOptions;
 };
 
 type FileRef = {
@@ -64,6 +65,33 @@ const parseJsonlLines = (contents: string): unknown[] => {
   return entries;
 };
 
+export type LoadOneSessionInput = {
+  file: string;
+  projectId: string;
+  sessionId: string;
+  mtimeMs: number;
+  options?: ExtractOptions;
+};
+
+export const loadOneSession = (input: LoadOneSessionInput): SessionSummary | null => {
+  let contents: string;
+  try {
+    contents = readFileSync(input.file, "utf-8");
+  } catch {
+    return null;
+  }
+  const entries = parseJsonlLines(contents);
+  const s = extractSession({
+    entries,
+    projectId: input.projectId,
+    sourceFile: input.file,
+    sourceMtimeMs: input.mtimeMs,
+    options: input.options,
+  });
+  if (s.sessionId === "") s.sessionId = input.sessionId;
+  return s;
+};
+
 export const loadSummaries = (opts: LoadOptions): SessionSummary[] => {
   const projectFilter = opts.projectFilter ?? null;
   const sinceMs = opts.sinceMs ?? null;
@@ -72,21 +100,14 @@ export const loadSummaries = (opts: LoadOptions): SessionSummary[] => {
   );
   const summaries: SessionSummary[] = [];
   for (const f of files) {
-    let contents: string;
-    try {
-      contents = readFileSync(f.file, "utf-8");
-    } catch {
-      continue;
-    }
-    const entries = parseJsonlLines(contents);
-    const s = extractSession({
-      entries,
+    const s = loadOneSession({
+      file: f.file,
       projectId: f.projectId,
-      sourceFile: f.file,
-      sourceMtimeMs: f.mtimeMs,
+      sessionId: f.sessionId,
+      mtimeMs: f.mtimeMs,
+      options: opts.extractOptions,
     });
-    if (s.sessionId === "") s.sessionId = f.sessionId;
-    summaries.push(s);
+    if (s !== null) summaries.push(s);
   }
   return summaries;
 };
