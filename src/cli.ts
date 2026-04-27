@@ -15,7 +15,10 @@ program
   .name("cc-log")
   .description("Quickly surface key info from Claude Code conversation history")
   .version("0.1.0")
-  .option("-C, --claude-dir <path>", "Claude data directory (default: $CLAUDE_CONFIG_DIR or ~/.claude)");
+  .option(
+    "-C, --claude-dir <path>",
+    "Claude data directory (default: $CLAUDE_CONFIG_DIR or ~/.claude)",
+  );
 
 program
   .command("list")
@@ -39,6 +42,12 @@ program
     "-f, --format <mode>",
     "Layout: interleaved (Q1→A1→Q2→A2, default) or sectioned (all Qs then all As)",
     "interleaved",
+  )
+  .option("--with-tool-output", "Include intermediate tool_use + tool_result pairs for each turn")
+  .option(
+    "--tool-output-limit <n>",
+    "Truncate each tool result to this many characters (0 = no truncation)",
+    "2000",
   )
   .option("--json", "Emit machine-readable JSON")
   .action((session: string, opts) => {
