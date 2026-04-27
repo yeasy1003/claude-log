@@ -254,16 +254,18 @@ const renderSectioned = (s: SessionSummary): string[] => {
     }
   }
 
-  const turnsWithCalls = s.turns
-    .map((t, i) => ({ turn: t, num: i + 1 }))
-    .filter((x) => x.turn.toolCalls !== undefined && x.turn.toolCalls.length > 0);
+  const turnsWithCalls = s.turns.flatMap((t, i) =>
+    t.toolCalls !== undefined && t.toolCalls.length > 0
+      ? [{ toolCalls: t.toolCalls, num: i + 1 }]
+      : [],
+  );
   if (turnsWithCalls.length > 0) {
     lines.push("## Tool Calls");
     lines.push("");
-    for (const { turn, num } of turnsWithCalls) {
+    for (const { toolCalls, num } of turnsWithCalls) {
       lines.push(`### Q${num}`);
       lines.push("");
-      turn.toolCalls?.forEach((c, ci) => {
+      toolCalls.forEach((c, ci) => {
         for (const line of renderToolCall(c, ci)) lines.push(line);
       });
       lines.push("");
