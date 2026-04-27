@@ -1,5 +1,70 @@
 import type { SessionSummary } from "./types.ts";
 
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+
+const getStr = (v: unknown): string | null => (typeof v === "string" ? v : null);
+
+const INPUT_SUMMARY_LIMIT = 200;
+
+const capInputSummary = (s: string): string =>
+  s.length <= INPUT_SUMMARY_LIMIT ? s : `${s.slice(0, INPUT_SUMMARY_LIMIT)}...`;
+
+const fallbackJsonSummary = (input: unknown): string => {
+  let raw: string;
+  try {
+    raw = JSON.stringify(input);
+  } catch {
+    raw = String(input);
+  }
+  return capInputSummary(raw ?? "");
+};
+
+export const summarizeToolInput = (name: string, input: unknown): string => {
+  if (!isObj(input)) return fallbackJsonSummary(input);
+  const tryFields = (...fields: string[]): string | null => {
+    for (const f of fields) {
+      const v = getStr(input[f]);
+      if (v !== null && v.length > 0) return v;
+    }
+    return null;
+  };
+  let summary: string | null = null;
+  switch (name) {
+    case "Bash":
+      summary = tryFields("command");
+      break;
+    case "Read":
+    case "Edit":
+    case "Write":
+      summary = tryFields("file_path");
+      break;
+    case "Grep":
+    case "Glob":
+      summary = tryFields("pattern");
+      break;
+    case "Skill": {
+      const skill = tryFields("skill");
+      if (skill !== null) {
+        const args = getStr(input.args);
+        summary = args !== null && args.length > 0 ? `${skill} ${args}` : skill;
+      }
+      break;
+    }
+    case "Agent":
+      summary = tryFields("subagent_type", "description");
+      break;
+    case "WebFetch":
+      summary = tryFields("url");
+      break;
+    case "WebSearch":
+      summary = tryFields("query");
+      break;
+  }
+  if (summary === null) return fallbackJsonSummary(input);
+  return capInputSummary(summary);
+};
+
 const fmtTs = (ts: string | null): string => ts ?? "unknown";
 
 const fmtDuration = (start: string | null, end: string | null): string => {
